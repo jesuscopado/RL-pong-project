@@ -5,15 +5,17 @@ agent and the SimpleAI
 import matplotlib.pyplot as plt
 from random import randint
 import pickle
+import time
 import gym
 import numpy as np
 import argparse
 import wimblepong
+from agent import Agent, Policy
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--headless", action="store_true", help="Run in headless mode")
 parser.add_argument("--housekeeping", action="store_true", help="Plot, player and ball positions and velocities at the end of each episode")
-parser.add_argument("--fps", type=int, help="FPS for rendering", default=30)
+parser.add_argument("--fps", type=int, help="FPS for rendering", default=60)
 parser.add_argument("--scale", type=int, help="Scale of the rendered game", default=1)
 args = parser.parse_args()
 
@@ -30,17 +32,24 @@ player_id = 1
 # Set up the player here. We used the SimpleAI that does not take actions for now
 player = wimblepong.SimpleAi(env, player_id)
 
-env.set_names("BombaPong", player.get_name())
+policy = Policy()
+myplayer = Agent(env, policy)
+
+env.set_names(myplayer.get_name(), player.get_name())
 # Housekeeping
 states = []
 win1 = 0
+
 
 for i in range(0,episodes):
     done = False
     while not done:
         # action1 is zero because in this example no agent is playing as player 0
-        action1 = 0 #player.get_action()
+        action1 = myplayer.get_action()
         ob1, rew1, done, info = env.step(action1)
+        print(ob1.view())
+        print(ob1.shape)
+        time.sleep(1)
         if args.housekeeping:
             states.append(ob1)
         # Count the wins
