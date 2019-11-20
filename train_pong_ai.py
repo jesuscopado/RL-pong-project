@@ -140,18 +140,18 @@ for it in range(0,episodes):
         #loss = policy(d_obs_batch, action_batch, action_prob_batch, advantage_batch)
         
         #PPO
-        vs = np.array([[1., 0.], [0., 1.], [0., 1.]])
-        ts = torch.FloatTensor(vs[action_batch.cpu().numpy()])
+        vs = np.array([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]) # 3x3 Identity matrix
+        ts = torch.FloatTensor(vs[action_batch.cpu().numpy()]) # [n_actions, 3]
 
         _, __, logits = myplayer.policy.forward(d_obs_batch)
-        r = torch.sum(F.softmax(logits, dim=2) * ts.to(device), dim=2) / action_prob_batch
+        r = torch.sum(F.softmax(logits, dim=3) * ts.to(device), dim=1) / action_prob_batch
         loss1 = r * advantage_batch
         loss2 = torch.clamp(r, 1-myplayer.eps_clip, 1+myplayer.eps_clip) * advantage_batch
         loss = -torch.min(loss1, loss2)
         loss = torch.mean(loss)
         
         loss.backward()
-        myplayer.policy.step()
+        myplayer.optimizer.step()
     
         print('Iteration %d -- Loss: %.3f' % (it, loss))
     if it % 100 == 0:
