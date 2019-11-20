@@ -2,8 +2,16 @@ import matplotlib.pyplot as plt
 import os
 
 def init_utils2():
-    os.remove("data/mean.dat")
-    os.remove("data/rew.dat")
+    try:
+        os.remove("data/mean0.dat")
+        os.remove("data/rew0.dat")
+        os.remove("data/mean1.dat")
+        os.remove("data/rew1.dat")
+        os.remove("data/mean2.dat")
+        os.remove("data/rew2.dat")
+    except:
+        print("Unable to remove old data!")
+    
 
 def save_mean_value(value):
     f = open("data/mean.dat","a")
