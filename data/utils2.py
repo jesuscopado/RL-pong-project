@@ -6,12 +6,24 @@ def init_utils2():
     os.remove("data/rew.dat")
 
 def save_mean_value(value):
-    f = open("mean.dat","a")
+    f = open("data/mean.dat","a")
     f.write("%f\n" % value)
     f.close()
 def save_rew(value):
-    f = open("rew.dat","a")
+    f = open("data/rew.dat","a")
     f.write("%f\n" % value)
+    f.close()
+
+def save_mean_value2(v_value, n):
+    f = open("data/mean" + str(n) + ".dat","a")
+    for i in v_value:
+        f.write("%f\n" % i)
+    f.close()
+    
+def save_rew2(v_value, n):
+    f = open("data/rew" + str(n) + ".dat","a")
+    for i in v_value:
+        f.write("%f\n" % i)
     f.close()
 
 def make_plot():
