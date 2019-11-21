@@ -30,7 +30,6 @@ player_id = 1
 # Set up the player here. We used the SimpleAI that does not take actions for now
 player = wimblepong.SimpleAi(env, player_id)
 
-env.set_names("BombaPong", player.get_name())
 # Housekeeping
 states = []
 win1 = 0
