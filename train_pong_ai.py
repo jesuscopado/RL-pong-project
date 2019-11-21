@@ -144,7 +144,7 @@ for it in range(0,episodes):
         ts = torch.FloatTensor(vs[action_batch.cpu().numpy()]) # [n_actions, 3]
 
         _, __, logits = myplayer.policy.forward(d_obs_batch)
-        r = torch.sum(F.softmax(logits, dim=3) * ts.to(device), dim=1) / action_prob_batch
+        r = torch.sum(F.softmax(logits, dim=-1) * ts.to(device), dim=1) / action_prob_batch
         loss1 = r * advantage_batch
         loss2 = torch.clamp(r, 1-myplayer.eps_clip, 1+myplayer.eps_clip) * advantage_batch
         loss = -torch.min(loss1, loss2)

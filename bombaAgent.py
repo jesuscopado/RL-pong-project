@@ -34,8 +34,10 @@ class Policy(torch.nn.Module):
         x_ac = F.relu(x_ac)
         x_mean = self.fc2_mean(x_ac)
 
-        x_probs = F.softmax(x_mean, dim=-1)
-        dist = Categorical(x_probs)
+        x_probs = F.softmax(x_mean, dim=-1) 
+        # Normalize the number of the vector in order to have their sum equal to 1
+        # dim=-1 means that it will take all the 3 values and normalise them
+        dist = Categorical(x_probs) # Example of output: Categorical(probs: torch.Size([3]))
 
         x_cr = self.fc1_critic(x)
         x_cr = F.relu(x_cr)
