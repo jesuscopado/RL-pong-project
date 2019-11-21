@@ -61,8 +61,8 @@ def make_plot():
         line = f.readline()
     f.close()
     
-    plt.plot(mean)
     plt.plot(rew)
+    plt.plot(mean)
     plt.legend(["Reward", "average"])
     plt.title("Reward history")
     plt.savefig("./plot.png")
