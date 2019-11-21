@@ -37,7 +37,7 @@ def save_rew2(v_value, n):
 def make_plot():
     plt.clf()
     # Fill the vector mean with the data from mean.dat
-    f = open("mean.dat","r")
+    f = open("mean0.dat","r")
     mean = []
     i = 0
     line = f.readline()
@@ -50,7 +50,7 @@ def make_plot():
     f.close()
 
     # Fill the vector rewards with the file from rew.dat
-    f = open("rew.dat","r")
+    f = open("rew0.dat","r")
     rew = []
     line = f.readline()
     while line:
