@@ -1,5 +1,7 @@
-import matplotlib.pyplot as plt
 import os
+
+import matplotlib.pyplot as plt
+
 
 def init_utils2():
     try:
@@ -11,33 +13,38 @@ def init_utils2():
         os.remove("data/rew2.dat")
     except:
         print("Unable to remove old data!")
-    
+
 
 def save_mean_value(value):
-    f = open("data/mean.dat","a")
-    f.write("%f\n" % value)
-    f.close()
-def save_rew(value):
-    f = open("data/rew.dat","a")
+    f = open("data/mean.dat", "w+")
     f.write("%f\n" % value)
     f.close()
 
+
+def save_rew(value):
+    f = open("data/rew.dat", "w+")
+    f.write("%f\n" % value)
+    f.close()
+
+
 def save_mean_value2(v_value, n):
-    f = open("data/mean" + str(n) + ".dat","a")
+    f = open("data/mean" + str(n) + ".dat", "w+")
     for i in v_value:
         f.write("%f\n" % i)
     f.close()
-    
+
+
 def save_rew2(v_value, n):
-    f = open("data/rew" + str(n) + ".dat","a")
+    f = open("data/rew" + str(n) + ".dat", "w+")
     for i in v_value:
         f.write("%f\n" % i)
     f.close()
+
 
 def make_plot():
     plt.clf()
     # Fill the vector mean with the data from mean.dat
-    f = open("mean0.dat","r")
+    f = open("mean0.dat", "r")
     mean = []
     i = 0
     line = f.readline()
@@ -50,7 +57,7 @@ def make_plot():
     f.close()
 
     # Fill the vector rewards with the file from rew.dat
-    f = open("rew0.dat","r")
+    f = open("rew0.dat", "r")
     rew = []
     line = f.readline()
     while line:
@@ -60,7 +67,7 @@ def make_plot():
         rew.append(round(float(line), 2))
         line = f.readline()
     f.close()
-    
+
     plt.plot(rew)
     plt.plot(mean)
     plt.legend(["Reward", "average"])

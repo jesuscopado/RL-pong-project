@@ -4,7 +4,6 @@ import numpy as np
 from torch.distributions import Categorical
 import sys
 import os.path
-import data.utils2 as utils2
 
 
 class Policy(torch.nn.Module):
@@ -34,40 +33,52 @@ class Policy(torch.nn.Module):
         x_ac = F.relu(x_ac)
         x_mean = self.fc2_mean(x_ac)
 
-        x_probs = F.softmax(x_mean, dim=-1) 
-        # Normalize the number of the vector in order to have their sum equal to 1
-        # dim=-1 means that it will take all the 3 values and normalise them
-        dist = Categorical(x_probs) # Example of output: Categorical(probs: torch.Size([3]))
-
-        x_cr = self.fc1_critic(x)
-        x_cr = F.relu(x_cr)
-        value = self.fc2_value(x_cr)
-
-        return dist, value, x_mean
-
-
+        return x_mean
 
 
 class Agent(object):
-    def __init__(self):
-        self.train_device = "cuda"
+    def __init__(self, train_device="cuda"):
+        self.train_device = train_device
         self.policy = Policy(3, 128).to(self.train_device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=1e-4)
         self.gamma = 0.99
         self.eps_clip = 0.2
         self.prev_obs = None
-        self.policy.eval()
         self.name = "BombaPong *_*"
 
     def replace_policy(self):
         self.old_policy.load_state_dict(self.policy.state_dict())
 
-    def get_action(self, stack_ob):
+    '''def get_action(self, stack_ob, evaluation=False):
         x = stack_ob.to(self.train_device)
-        dist, value, _ = self.policy.forward(x)
-        action = torch.argmax(dist.probs)
-        action_prob = torch.max(dist.probs)
-        return action, action_prob, value
+        x_mean = self.policy.forward(x)
+        x_probs = F.softmax(x_mean, dim=-1)
+        dist = Categorical(x_probs)
+
+        if evaluation:
+            action = torch.argmax(dist.probs)
+        else:
+            action = dist.sample()
+
+        # Calculate the log probability of the action
+        log_act_prob = dist.log_prob(action)  # negative in order to perform gradient ascent
+
+        return action, log_act_prob'''
+
+    def get_action(self, stack_ob, evaluation=False):
+        x = stack_ob.to(self.train_device)
+        x_mean = self.policy.forward(x)
+        x_probs = F.softmax(x_mean, dim=-1)
+        dist = Categorical(logits=x_probs)
+
+        if evaluation:
+            action = int(torch.argmax(x_probs[0]).detach().cpu().numpy())
+            action_prob = 1.0
+        else:
+            action = int(dist.sample().cpu().numpy()[0])
+            action_prob = float(dist.probs[0, action].detach().cpu().numpy())
+
+        return action, action_prob
 
     def reset(self):
         self.prev_obs = None
@@ -81,12 +92,6 @@ class Agent(object):
             self.policy.load_state_dict(torch.load(network_name), strict=False)
             self.policy.eval()
             # TODO: load also the optimizer file
-    '''
-    def save_model(self, number_episodes, n):
-        torch.save(self.policy.state_dict(), "data/params" + str(number_episodes) + ".ckpt")
-        utils2.save_mean_value2(v_reward_sum_running_avg, n)
-        utils2.save_rew2(v_reward_sum, n)
-    '''
 
     def preprocess(self, observation):
         observation = observation[::2, ::2].mean(axis=-1)
