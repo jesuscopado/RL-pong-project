@@ -2,6 +2,7 @@ import time
 
 import gym
 import matplotlib.pyplot as plt
+import torch
 
 from test_agents.ACAgent.agent import Agent as ACAgent
 import wimblepong
@@ -12,10 +13,11 @@ env = gym.make("WimblepongVisualSimpleAI-v0")
 # Define the player
 player_id = 1
 # Set up the player here. We used the SimpleAI that does not take actions for now
-player = ACAgent("cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+player = ACAgent(device)
 
 
-def train(print_things=True, episodes_per_match=100, train_episodes=100000, render=False):
+def train(print_things=True, episodes_per_game=100, train_episodes=100000, render=False):
     states = []
     win1 = 0
     start_time = time.time()
@@ -47,15 +49,14 @@ def train(print_things=True, episodes_per_match=100, train_episodes=100000, rend
                 if (episode_number + 1) % 5 == 0:
                     env.switch_sides()
 
-                if (episode_number + 1) % episodes_per_match == 0:
+                if (episode_number + 1) % episodes_per_game == 0:
                     if print_things:
                         print("Episode {} over. Win ratio: {}%".format(
-                            episode_number + 1, int((win1 / episodes_per_match) * 100)))
+                            episode_number + 1, int((win1 / episodes_per_game) * 100)))
                     win1 = 0
 
                 obs1 = env.reset()
     elapsed_time_min = round((time.time() - start_time) / 60, 2)
-
 
 if __name__ == "__main__":
     train()

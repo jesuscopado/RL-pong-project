@@ -1,6 +1,7 @@
 import random
 from collections import namedtuple
 
+import matplotlib.pyplot as plt
 import torch
 
 
@@ -11,6 +12,18 @@ def discount_rewards(r, gamma):
         running_add = running_add * gamma + r[t]
         discounted_r[t] = running_add
     return discounted_r
+
+
+def save_plot(win_ratio_history, average_win_ratio_history, agent_name):
+    plt.figure()
+    plt.clf()
+    plt.plot(win_ratio_history)
+    plt.plot(average_win_ratio_history)
+    plt.title("Training: %s" % agent_name)
+    plt.xlabel("Games (sets of 100 episodes)")
+    plt.ylabel("Win ratio (%)")
+    plt.grid(True)
+    plt.savefig("Training_%s.png" % agent_name)
 
 
 Transition = namedtuple('Transition',
