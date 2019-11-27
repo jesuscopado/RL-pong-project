@@ -41,7 +41,7 @@ for episode_number in range(1, train_episodes+1):
             env.render()
 
         observation = player.preprocess_obs(observation)
-        action, aprob, hidden_state = player.get_action(observation)  # and store outcome
+        action, aprob, hidden_state = player.get_action(observation)
         prev_observation = observation
 
         # step the environment and get new measurements
@@ -55,7 +55,7 @@ for episode_number in range(1, train_episodes+1):
     # timestep_history.append(timesteps)
     wins = wins+1 if reward == 10 else wins
 
-    if (episode_number + 1) % 5 == 0:
+    if episode_number % 5 == 0:
         env.switch_sides()
 
     if episode_number % episodes_per_game == 0:

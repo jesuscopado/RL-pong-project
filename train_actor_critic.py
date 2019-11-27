@@ -58,5 +58,6 @@ def train(print_things=True, episodes_per_game=100, train_episodes=100000, rende
                 obs1 = env.reset()
     elapsed_time_min = round((time.time() - start_time) / 60, 2)
 
+
 if __name__ == "__main__":
     train()
