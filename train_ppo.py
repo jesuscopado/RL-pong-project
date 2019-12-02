@@ -82,12 +82,13 @@ def train(episodes_per_game=100, episodes_per_iteration=200, iterations=100000, 
             print('Iteration %d -- Loss: %.3f' % (it, loss))
 
         if it % 10 == 0:
-            player.save_model()
+            player.save_model(it)
             save_plot(win_ratio_history, average_win_ratio_history, player.get_name())
 
     elapsed_time_min = round((time.time() - start_time) / 60, 2)
-    print("Training finished in %f minutes." % elapsed_time_min)
+    player.save_model(it)
     save_plot(win_ratio_history, average_win_ratio_history, player.get_name())
+    print("Training finished in %f minutes." % elapsed_time_min)
 
 
 if __name__ == "__main__":
