@@ -71,8 +71,8 @@ def train(episodes_per_game=100, episodes_per_iteration=200, iterations=100000, 
                         else:
                             avg = np.mean(win_ratio_history)
                         average_win_ratio_history.append(avg)
-                        print("Total episodes: {}. Win ratio (last 100 episodes): {}. Average win ratio: {}".format(
-                            total_episodes, win_ratio, avg))
+                        print("Total episodes: {}. Win ratio (last 100 episodes): {}%. Average win ratio: {}%".format(
+                            total_episodes, win_ratio, round(float(avg), 2)))
 
                     break
 
