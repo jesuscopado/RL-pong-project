@@ -1,9 +1,10 @@
 import numpy as np
+import random
 import torch
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-from utils import discount_rewards
+# from utils import discount_rewards
 
 
 class Policy(torch.nn.Module):
@@ -34,8 +35,6 @@ class Policy(torch.nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
-        # x_probs = F.softmax(x, dim=-1)
-        # dist = Categorical(x_probs)
         return x
 
 
@@ -43,10 +42,10 @@ class Agent(object):
     def __init__(self, train_device="cuda"):
         self.name = "PPOAgent"
         self.train_device = train_device
-        self.input_dimension = 100 * 100  # downsampled 100x100 grid
+        self.input_dimension = 100 * 100  # downsampled by 2 -> 100x100 grid
         self.action_space = 2
-        self.policy = Policy(self.action_space, 256, self.input_dimension).to(self.train_device)
-        self.optimizer = torch.optim.RMSprop(self.policy.parameters(), lr=1e-4)
+        self.policy = Policy(self.action_space, self.input_dimension).to(self.train_device)
+        self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=1e-3)
         self.gamma = 0.99
         self.eps_clip = 0.1
         self.batch_size = 200
@@ -55,44 +54,69 @@ class Agent(object):
         self.log_act_probs = []
         self.rewards = []
 
-    def get_action(self, observation, evaluation=False):
-        x = self.preprocess(observation).to(self.train_device)
-        dist = self.policy.forward(x)
+    def get_action(self, stack_obs, evaluation=False):
+        logits = self.policy.forward(stack_obs)
 
         if evaluation:
-            action = torch.argmax(dist.probs)
+            action = int(torch.argmax(logits[0]).detach().cpu().numpy())
+            action_prob = 1.0
         else:
-            action = dist.sample()
+            dist = torch.distributions.Categorical(logits=logits)
+            action = int(dist.sample().cpu().numpy()[0])
+            action_prob = float(dist.probs[0, action].detach().cpu().numpy())
 
-        # Calculate the log probability of the action
-        log_act_prob = -dist.log_prob(action)  # negative in order to perform gradient ascent
+        return action, action_prob
 
-        action = action.item() + 1 if self.action_space == 2 else action.item()
-        return action, log_act_prob
+    def convert_action(self, action):
+        return action + 1 if self.action_space == 2 else action
 
-    def episode_finished(self, episode_number):
-        log_act_probs = torch.stack(self.log_act_probs, dim=0)\
-            .to(self.train_device).squeeze(-1)
-        rewards = torch.stack(self.rewards, dim=0)\
-            .to(self.train_device).squeeze(-1)
-        self.states, self.log_act_probs, self.rewards = [], [], []
+    def preprocess(self, obs):
+        obs = obs[::2, ::2, 0]  # downsample by factor of 2
+        obs[obs == 43] = 0  # erase background (background type 1)
+        obs[obs != 0] = 1  # everything else (paddles, ball) just set to 1
+        obs = torch.from_numpy(obs.astype(np.float32).ravel()).unsqueeze(0)
+        if self.prev_obs is None:
+            self.prev_obs = obs
+        stack_obs = torch.cat([obs, self.prev_obs], dim=1).to(self.train_device)
+        self.prev_obs = obs
+        return stack_obs
 
-        # Compute discounted rewards and normalize it to zero mean and unit variance
-        discounted_rewards = discount_rewards(rewards, self.gamma)
-        discounted_rewards -= torch.mean(discounted_rewards)
-        discounted_rewards /= torch.std(discounted_rewards)
+    def discounted_rewards(self, reward_history):
+        # compute advantage
+        R = 0
+        discounted_rewards = []
 
-        weighted_probs = log_act_probs * discounted_rewards
-        loss = torch.mean(weighted_probs)
-        loss.backward()
+        for r in reward_history[::-1]:
+            if r != 0:
+                R = 0  # scored/lost a point in pong, so reset reward sum
+            R = r + self.gamma * R
+            discounted_rewards.insert(0, R)
 
-        self.reset()
-        if episode_number % self.batch_size == 0:
-            self.update_policy()
+        discounted_rewards = torch.FloatTensor(discounted_rewards)
+        return (discounted_rewards - discounted_rewards.mean()) / discounted_rewards.std()
 
-    def update_policy(self):
+    def update_policy(self, d_obs_history, action_history, action_prob_history, discounted_rewards):
+        n_batch = int(0.7 * len(action_history))  # TODO: check ideal batch size
+        idxs = random.sample(range(len(action_history)), n_batch)
+        d_obs_batch = torch.cat([d_obs_history[idx] for idx in idxs], 0).to(self.train_device)
+        action_batch = torch.LongTensor([action_history[idx] for idx in idxs]).to(self.train_device)
+        action_prob_batch = torch.FloatTensor([action_prob_history[idx] for idx in idxs]).to(self.train_device)
+        advantage_batch = torch.FloatTensor([discounted_rewards[idx] for idx in idxs]).to(self.train_device)
+        # advantage_batch = (advantage_batch - advantage_batch.mean()) / advantage_batch.std()
+
         self.optimizer.step()
-        self.optimizer.zero_grad()
+        vs = np.array([[1., 0.], [0., 1.]])
+        ts = torch.FloatTensor(vs[action_batch.cpu().numpy()]).to(self.train_device)
+        logits = self.policy.forward(d_obs_batch)
+        r = torch.sum(F.softmax(logits, dim=1) * ts, dim=1) / action_prob_batch
+        loss1 = r * advantage_batch
+        loss2 = torch.clamp(r, 1 - self.eps_clip, 1 + self.eps_clip) * advantage_batch
+        loss = -torch.min(loss1, loss2)
+        loss = torch.mean(loss)
+        loss.backward()
+        self.optimizer.step()
+
+        return float(loss.detach().cpu().numpy())
 
     def reset(self):
         self.prev_obs = None
@@ -108,34 +132,3 @@ class Agent(object):
         torch.save(self.policy.state_dict(), "{}.mdl".format(self.name))
         # TODO: is it enough saving just the state dict? What about the optimizer?
         # https://stackoverflow.com/questions/42703500/best-way-to-save-a-trained-model-in-pytorch
-
-    def preprocess(self, observation):
-        observation = observation[::2, ::2].mean(axis=-1)
-        observation = np.expand_dims(observation, axis=-1)
-        if self.prev_obs is None:
-            self.prev_obs = observation
-        stack_ob = np.concatenate((self.prev_obs, observation), axis=-1)
-        stack_ob = torch.from_numpy(stack_ob).float().unsqueeze(0)
-        stack_ob = stack_ob.transpose(1, 3)
-        self.prev_obs = observation
-        return stack_ob
-
-    def preprocess(self, obs):
-        # Preprocess the observation and set input to network to be difference image
-        obs = obs[::2, ::2, 0]  # downsample by factor of 2
-        obs[obs == 43] = 0  # erase background (background type 1)
-        obs[obs != 0] = 1  # everything else (paddles, ball) just set to 1
-        obs = torch.from_numpy(obs.astype(np.float32).ravel()).unsqueeze(0)
-        # return obs - self.prev_obs
-        # return self.state_to_tensor(x) - self.state_to_tensor(prev_x)
-        return torch.cat([self.state_to_tensor(x), self.state_to_tensor(prev_x)], dim=1)
-        cur_obs = obs.astype(np.float).ravel()
-        obs = cur_obs - self.prev_obs if self.prev_obs is not None else np.zeros(self.input_dimension)
-        self.prev_obs = cur_obs
-        obs = torch.from_numpy(obs).float()
-        return obs
-
-    def store_outcome(self, observation, log_act_prob, action_taken, reward, done):
-        self.states.append(observation)
-        self.log_act_probs.append(log_act_prob)
-        self.rewards.append(torch.tensor([float(reward)]))

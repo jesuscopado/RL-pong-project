@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 import numpy as np
 
-from test_agents.PGAgent.agent import Agent as PGAgent
-from test_agents.PGAgent_FCModel.agent import Agent as PGAgent_FCModel
+from test_agents.PPOAgent.agent import Agent as PPOAgent
 from utils import save_plot
 
 import wimblepong
@@ -14,59 +13,74 @@ import wimblepong
 # Make the environment
 env = gym.make("WimblepongVisualSimpleAI-v0")
 
-# Define the player
-player_id = 1
 # Set up the player here. We used the SimpleAI that does not take actions for now
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-player = PGAgent(device)
+player = PPOAgent(device)
 
 
-def train(episodes_per_game=100, train_episodes=500000, render=False, resume=False):
+def train(episodes_per_game=100, episodes_per_iteration=200, iterations=100000, max_timesteps=190000,
+          render=False, resume=False):
+
     if resume:
         player.load_model()
 
     print("Training for {} started!".format(player.get_name()))
+
     win_ratio_history, average_win_ratio_history = [], []
-    wins = 0
+    wins, total_episodes = 0, 0
     start_time = time.time()
-    for episode_number in range(1, train_episodes+1):
-        done = False
-        obs1 = env.reset()
-        rew1 = 1
-        while not done:
-            if render:
-                env.render()
+    reward_sum_running_avg = None
+    for it in range(iterations):
+        stack_obs_history, action_history, action_prob_history, reward_history = [], [], [], []
+        for ep in range(episodes_per_iteration):  # TODO: which number here? 10? 30? 200?
+            obs1 = env.reset()
+            player.reset()
+            for t in range(max_timesteps):
+                if render:
+                    env.render()
 
-            # Get action from the agent
-            action1, log_act_prob = player.get_action(obs1)
-            prev_obs1 = obs1
+                stack_obs = player.preprocess(obs1)
+                with torch.no_grad():
+                    action1, action_prob1 = player.get_action(stack_obs)
 
-            # Perform the action on the environment, get new state and reward
-            obs1, rew1, done, info = env.step(action1)
+                obs1, reward1, done, info = env.step(player.convert_action(action1))
 
-            # Store action's outcome (so that the agent can improve its policy)
-            player.store_outcome(prev_obs1, log_act_prob, action1, rew1, done)
+                stack_obs_history.append(stack_obs)
+                action_history.append(action1)
+                action_prob_history.append(action_prob1)
+                reward_history.append(reward1)
 
-        player.episode_finished(episode_number)
-        wins = wins + 1 if rew1 == 10 else wins
+                if done:
+                    total_episodes += 1
+                    wins = wins + 1 if reward1 == 10 else wins
 
-        if episode_number % 5 == 0:
-            env.switch_sides()
+                    reward_sum = sum(reward_history[-t:])
+                    reward_sum_running_avg = 0.99 * reward_sum_running_avg + 0.01 * reward_sum if reward_sum_running_avg else reward_sum
+                    print('Iteration %d, Episode %d (%d timesteps) - '
+                          'last_action: %d, last_action_prob: %.2f, reward_sum: %.2f, running_avg: %.2f' %
+                          (it, ep, t, action1, action_prob1, reward_sum, reward_sum_running_avg))
 
-        if episode_number % episodes_per_game == 0:
-            win_ratio = int((wins / episodes_per_game) * 100)
-            print("Episode {} over. Win ratio: {}%".format(episode_number, win_ratio))
-            wins = 0
+                    if total_episodes % episodes_per_game == 0:
+                        win_ratio = int((wins / episodes_per_game) * 100)
+                        print("Episode {} over. Win ratio: {}%".format(total_episodes, win_ratio))
+                        wins = 0
 
-            # Bookkeeping (mainly for generating plots)
-            win_ratio_history.append(win_ratio)
-            if episode_number > 100:
-                avg = np.mean(win_ratio_history[-100:])
-            else:
-                avg = np.mean(win_ratio_history)
-            average_win_ratio_history.append(avg)
+                        # Bookkeeping (mainly for generating plots)
+                        win_ratio_history.append(win_ratio)
+                        if total_episodes > 100:
+                            avg = np.mean(win_ratio_history[-100:])
+                        else:
+                            avg = np.mean(win_ratio_history)
+                        average_win_ratio_history.append(avg)
 
-        if episode_number % 10000 == 0:
+                    break
+
+        discounted_rewards = player.discounted_rewards(reward_history)
+        for _ in range(5):
+            loss = player.update_policy(stack_obs_history, action_history, action_prob_history, discounted_rewards)
+            print('Iteration %d -- Loss: %.3f' % (it, loss))
+
+        if it % 10 == 0:
             player.save_model()
             save_plot(win_ratio_history, average_win_ratio_history, player.get_name())
 
