@@ -23,7 +23,7 @@ class Policy(torch.nn.Module):
         self.fc3 = torch.nn.Linear(self.hidden2, action_space)
         '''
 
-        # self.init_weights() start by init
+        # self.init_weights()
 
     def init_weights(self):
         for m in self.modules():
@@ -38,13 +38,38 @@ class Policy(torch.nn.Module):
         return x
 
 
+class Policy_3FC(torch.nn.Module):
+    def __init__(self, action_space, input_dimension):
+        super().__init__()
+        self.hidden1 = 512
+        self.hidden2 = 64
+        self.fc1 = torch.nn.Linear(input_dimension, self.hidden1)
+        self.fc2 = torch.nn.Linear(self.hidden1, self.hidden2)
+        self.fc3 = torch.nn.Linear(self.hidden2, action_space)
+        # self.init_weights()
+
+    def init_weights(self):
+        for m in self.modules():
+            if type(m) is torch.nn.Linear:
+                torch.nn.init.xavier_normal_(m.weight)
+                torch.nn.init.zeros_(m.bias)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+        x = F.relu(x)
+        x = self.fc3(x)
+        return x
+
+
 class Agent(object):
     def __init__(self, train_device="cuda"):
         self.name = "PPOAgent"
         self.train_device = train_device
         self.input_dimension = 100 * 100  # downsampled by 2 -> 100x100 grid
         self.action_space = 2
-        self.policy = Policy(self.action_space, self.input_dimension).to(self.train_device)
+        self.policy = Policy_3FC(self.action_space, self.input_dimension).to(self.train_device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=1e-3)
         self.gamma = 0.99
         self.eps_clip = 0.1
