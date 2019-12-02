@@ -13,16 +13,6 @@ class Policy(torch.nn.Module):
         self.hidden = 512
         self.fc1 = torch.nn.Linear(input_dimension*2, self.hidden)
         self.fc2 = torch.nn.Linear(self.hidden, action_space)
-
-        '''
-        # Three FC layers instead of 2?
-        self.hidden1 = 512
-        self.hidden2 = 64
-        self.fc1 = torch.nn.Linear(input_dimension, self.hidden1)
-        self.fc2 = torch.nn.Linear(self.hidden1, self.hidden2)
-        self.fc3 = torch.nn.Linear(self.hidden2, action_space)
-        '''
-
         # self.init_weights()
 
     def init_weights(self):
@@ -43,7 +33,7 @@ class Policy_3FC(torch.nn.Module):
         super().__init__()
         self.hidden1 = 512
         self.hidden2 = 64
-        self.fc1 = torch.nn.Linear(input_dimension, self.hidden1)
+        self.fc1 = torch.nn.Linear(input_dimension*2, self.hidden1)
         self.fc2 = torch.nn.Linear(self.hidden1, self.hidden2)
         self.fc3 = torch.nn.Linear(self.hidden2, action_space)
         # self.init_weights()
