@@ -14,16 +14,16 @@ def discount_rewards(r, gamma):
     return discounted_r
 
 
-def save_plot(win_ratio_history, average_win_ratio_history, agent_name):
+def save_plot(win_ratio_history, average_win_ratio_history, agent_name, episodes_batch=200, it=-1):
     plt.figure()
     plt.clf()
     plt.plot(win_ratio_history)
     plt.plot(average_win_ratio_history)
     plt.title("Training: %s" % agent_name)
-    plt.xlabel("Games (sets of 100 episodes)")
+    plt.xlabel("{} episodes batch".format(episodes_batch))
     plt.ylabel("Win ratio (%)")
     plt.grid(True)
-    plt.savefig("Training_%s.png" % agent_name)
+    plt.savefig("Training_{}_{}.png".format(agent_name, it))
 
 
 Transition = namedtuple('Transition',

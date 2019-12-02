@@ -4,8 +4,6 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-# from utils import discount_rewards
-
 
 class Policy(torch.nn.Module):
     def __init__(self, action_space, input_dimension):
@@ -55,7 +53,7 @@ class Policy3FC(torch.nn.Module):
 
 class Agent(object):
     def __init__(self, train_device="cuda"):
-        self.name = "PPOAgent"
+        self.name = "PPOAgent_ZeroGrad"
         self.train_device = train_device
         self.input_dimension = 100 * 100  # downsampled by 2 -> 100x100 grid
         self.action_space = 2
@@ -96,42 +94,41 @@ class Agent(object):
         self.prev_obs = obs
         return stack_obs
 
-    def discounted_rewards(self, reward_history):
-        # compute advantage
+    def discount_rewards(self, reward_history):
         R = 0
         discounted_rewards = []
-
         for r in reward_history[::-1]:
             if r != 0:
                 R = 0  # scored/lost a point in pong, so reset reward sum
             R = r + self.gamma * R
             discounted_rewards.insert(0, R)
+        return torch.FloatTensor(discounted_rewards)
 
-        discounted_rewards = torch.FloatTensor(discounted_rewards)
-        return (discounted_rewards - discounted_rewards.mean()) / discounted_rewards.std()
+    def update_policy(self, d_obs_history, action_history, action_prob_history, reward_history):
+        # Compute discounted rewards and normalize
+        discounted_rewards = self.discount_rewards(reward_history)
+        discounted_rewards = (discounted_rewards - discounted_rewards.mean()) / discounted_rewards.std()
 
-    def update_policy(self, d_obs_history, action_history, action_prob_history, discounted_rewards):
-        n_batch = int(0.7 * len(action_history))  # TODO: check ideal batch size
-        idxs = random.sample(range(len(action_history)), n_batch)
-        d_obs_batch = torch.cat([d_obs_history[idx] for idx in idxs], 0).to(self.train_device)
-        action_batch = torch.LongTensor([action_history[idx] for idx in idxs]).to(self.train_device)
-        action_prob_batch = torch.FloatTensor([action_prob_history[idx] for idx in idxs]).to(self.train_device)
-        advantage_batch = torch.FloatTensor([discounted_rewards[idx] for idx in idxs]).to(self.train_device)
-        # advantage_batch = (advantage_batch - advantage_batch.mean()) / advantage_batch.std()
+        for _ in range(5):  # TODO: check ideal number of updates
+            n_batch = int(0.7 * len(action_history))  # TODO: check ideal batch size
+            idxs = random.sample(range(len(action_history)), n_batch)
+            d_obs_batch = torch.cat([d_obs_history[idx] for idx in idxs], 0).to(self.train_device)
+            action_batch = torch.LongTensor([action_history[idx] for idx in idxs]).to(self.train_device)
+            action_prob_batch = torch.FloatTensor([action_prob_history[idx] for idx in idxs]).to(self.train_device)
+            advantage_batch = torch.FloatTensor([discounted_rewards[idx] for idx in idxs]).to(self.train_device)
+            # advantage_batch = (advantage_batch - advantage_batch.mean()) / advantage_batch.std()
 
-        self.optimizer.zero_grad()
-        vs = np.array([[1., 0.], [0., 1.]])
-        ts = torch.FloatTensor(vs[action_batch.cpu().numpy()]).to(self.train_device)
-        logits = self.policy.forward(d_obs_batch)
-        r = torch.sum(F.softmax(logits, dim=1) * ts, dim=1) / action_prob_batch
-        loss1 = r * advantage_batch
-        loss2 = torch.clamp(r, 1 - self.eps_clip, 1 + self.eps_clip) * advantage_batch
-        loss = -torch.min(loss1, loss2)
-        loss = torch.mean(loss)
-        loss.backward()
-        self.optimizer.step()
-
-        return float(loss.detach().cpu().numpy())
+            self.optimizer.zero_grad()  # TODO: check if we get better results without it (full-batch?)
+            vs = np.array([[1., 0.], [0., 1.]])
+            ts = torch.FloatTensor(vs[action_batch.cpu().numpy()]).to(self.train_device)
+            logits = self.policy.forward(d_obs_batch)
+            r = torch.sum(F.softmax(logits, dim=1) * ts, dim=1) / action_prob_batch
+            loss1 = r * advantage_batch
+            loss2 = torch.clamp(r, 1 - self.eps_clip, 1 + self.eps_clip) * advantage_batch
+            loss = -torch.min(loss1, loss2)
+            loss = torch.mean(loss)
+            loss.backward()
+            self.optimizer.step()
 
     def reset(self):
         self.prev_obs = None
@@ -143,7 +140,7 @@ class Agent(object):
         weights = torch.load("{}.mdl".format(self.name))
         self.policy.load_state_dict(weights, strict=False)
 
-    def save_model(self, iteration):
+    def save_model(self, iteration=-1):
         hundreds_iterations = (iteration // 100) * 100
         torch.save(self.policy.state_dict(), "{}_{}.mdl".format(self.name, hundreds_iterations))
         # TODO: is it enough saving just the state dict? What about the optimizer?

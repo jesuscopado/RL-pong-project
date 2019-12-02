@@ -18,23 +18,24 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 player = PPOAgent(device)
 
 
-def train(episodes_per_game=100, episodes_per_iteration=200, iterations=100000, max_timesteps=190000,
-          render=False, resume=False):
+def train(episodes_batch=200, iterations=100000, max_timesteps=190000,
+          render=False, resume=False, full_print=True):
 
     if resume:
         player.load_model()
 
     print("Training for {} started!".format(player.get_name()))
 
-    win_ratio_history, average_win_ratio_history = [], []
+    win_ratio_history, average_win_ratio_history = [], []  # within the batch of episodes
     wins, total_episodes = 0, 0
     start_time = time.time()
     reward_sum_running_avg = None
     for it in range(iterations):
         stack_obs_history, action_history, action_prob_history, reward_history = [], [], [], []
-        for ep in range(episodes_per_iteration):  # TODO: which number here? 10? 30? 200?
+        for ep in range(episodes_batch):  # TODO: which number here? 10? 30? 200?
             obs1 = env.reset()
             player.reset()
+            total_episodes += 1
             for t in range(max_timesteps):
                 if render:
                     env.render()
@@ -51,43 +52,37 @@ def train(episodes_per_game=100, episodes_per_iteration=200, iterations=100000, 
                 reward_history.append(reward1)
 
                 if done:
-                    total_episodes += 1
                     wins = wins + 1 if reward1 == 10 else wins
-
-                    reward_sum = sum(reward_history[-t:])
-                    reward_sum_running_avg = 0.99 * reward_sum_running_avg + 0.01 * reward_sum if reward_sum_running_avg else reward_sum
-                    print('Iteration %d, Episode %d (%d timesteps) - '
-                          'last_action: %d, last_action_prob: %.2f, reward_sum: %.2f, running_avg: %.2f' %
-                          (it, ep, t, action1, action_prob1, reward_sum, reward_sum_running_avg))
-
-                    if total_episodes % episodes_per_game == 0:
-                        win_ratio = int((wins / episodes_per_game) * 100)
-                        wins = 0
-
-                        # Bookkeeping (mainly for generating plots)
-                        win_ratio_history.append(win_ratio)
-                        if total_episodes > 100:
-                            avg = np.mean(win_ratio_history[-100:])
+                    if full_print:
+                        reward_sum = sum(reward_history[-t:])
+                        if reward_sum_running_avg:
+                            reward_sum_running_avg = 0.99 * reward_sum_running_avg + 0.01 * reward_sum
                         else:
-                            avg = np.mean(win_ratio_history)
-                        average_win_ratio_history.append(avg)
-                        print("Total episodes: {}. Win ratio (last 100 episodes): {}%. Average win ratio: {}%".format(
-                            total_episodes, win_ratio, round(float(avg), 2)))
-
+                            reward_sum_running_avg = reward_sum
+                        print('Iteration %d, Episode %d (%d timesteps) - '
+                              'last_action: %d, last_action_prob: %.2f, result: %s, running_avg: %.2f' %
+                              (it, ep, t, action1, action_prob1,
+                               "¡¡VICTORY!!" if reward1 == 10 else "defeat", reward_sum_running_avg))
                     break
 
-        discounted_rewards = player.discounted_rewards(reward_history)
-        for _ in range(5):
-            loss = player.update_policy(stack_obs_history, action_history, action_prob_history, discounted_rewards)
-            print('Iteration %d -- Loss: %.3f' % (it, loss))
+        player.update_policy(stack_obs_history, action_history, action_prob_history, reward_history)
+
+        # Bookkeeping (mainly for generating plots)
+        win_ratio = int((wins / episodes_batch) * 100)
+        win_ratio_history.append(win_ratio)
+        avg = np.mean(win_ratio_history[-100:])
+        average_win_ratio_history.append(avg)
+        print("Total episodes: {}. Win ratio (last episodes batch): {}%. Average win ratio: {}%".format(
+            total_episodes, win_ratio, round(float(avg), 2)))
+        wins = 0
 
         if it % 10 == 0:
             player.save_model(it)
-            save_plot(win_ratio_history, average_win_ratio_history, player.get_name())
+            save_plot(win_ratio_history, average_win_ratio_history, player.get_name(), episodes_batch, it)
 
     elapsed_time_min = round((time.time() - start_time) / 60, 2)
     player.save_model(it)
-    save_plot(win_ratio_history, average_win_ratio_history, player.get_name())
+    save_plot(win_ratio_history, average_win_ratio_history, player.get_name(), episodes_batch)
     print("Training finished in %f minutes." % elapsed_time_min)
 
 
