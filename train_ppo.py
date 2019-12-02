@@ -62,7 +62,6 @@ def train(episodes_per_game=100, episodes_per_iteration=200, iterations=100000, 
 
                     if total_episodes % episodes_per_game == 0:
                         win_ratio = int((wins / episodes_per_game) * 100)
-                        print("Episode {} over. Win ratio: {}%".format(total_episodes, win_ratio))
                         wins = 0
 
                         # Bookkeeping (mainly for generating plots)
@@ -72,6 +71,8 @@ def train(episodes_per_game=100, episodes_per_iteration=200, iterations=100000, 
                         else:
                             avg = np.mean(win_ratio_history)
                         average_win_ratio_history.append(avg)
+                        print("Total episodes: {}. Win ratio (last 100 episodes): {}. Average win ratio: {}".format(
+                            total_episodes, win_ratio, avg))
 
                     break
 
