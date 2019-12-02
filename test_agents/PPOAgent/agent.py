@@ -119,7 +119,7 @@ class Agent(object):
         advantage_batch = torch.FloatTensor([discounted_rewards[idx] for idx in idxs]).to(self.train_device)
         # advantage_batch = (advantage_batch - advantage_batch.mean()) / advantage_batch.std()
 
-        self.optimizer.step()
+        self.optimizer.zero_grad()
         vs = np.array([[1., 0.], [0., 1.]])
         ts = torch.FloatTensor(vs[action_batch.cpu().numpy()]).to(self.train_device)
         logits = self.policy.forward(d_obs_batch)
