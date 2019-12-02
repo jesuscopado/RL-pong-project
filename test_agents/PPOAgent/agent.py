@@ -6,12 +6,23 @@ from torch.distributions import Categorical
 from utils import discount_rewards
 
 
-class PolicyFC(torch.nn.Module):
-    def __init__(self, action_space, hidden, input_dimension):
+class Policy(torch.nn.Module):
+    def __init__(self, action_space, input_dimension):
         super().__init__()
-        self.fc1 = torch.nn.Linear(input_dimension, hidden)
-        self.fc2 = torch.nn.Linear(hidden, action_space)
-        self.init_weights()
+        self.hidden = 512
+        self.fc1 = torch.nn.Linear(input_dimension*2, self.hidden)
+        self.fc2 = torch.nn.Linear(self.hidden, action_space)
+
+        '''
+        # Three FC layers instead of 2?
+        self.hidden1 = 512
+        self.hidden2 = 64
+        self.fc1 = torch.nn.Linear(input_dimension, self.hidden1)
+        self.fc2 = torch.nn.Linear(self.hidden1, self.hidden2)
+        self.fc3 = torch.nn.Linear(self.hidden2, action_space)
+        '''
+
+        # self.init_weights() start by init
 
     def init_weights(self):
         for m in self.modules():
@@ -23,20 +34,21 @@ class PolicyFC(torch.nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
-        x_probs = F.softmax(x, dim=-1)
-        dist = Categorical(x_probs)
-        return dist
+        # x_probs = F.softmax(x, dim=-1)
+        # dist = Categorical(x_probs)
+        return x
 
 
 class Agent(object):
     def __init__(self, train_device="cuda"):
-        self.name = "PGAgent_FCModel"
+        self.name = "PPOAgent"
         self.train_device = train_device
         self.input_dimension = 100 * 100  # downsampled 100x100 grid
         self.action_space = 2
-        self.policy = PolicyFC(self.action_space, 256, self.input_dimension).to(self.train_device)
+        self.policy = Policy(self.action_space, 256, self.input_dimension).to(self.train_device)
         self.optimizer = torch.optim.RMSprop(self.policy.parameters(), lr=1e-4)
         self.gamma = 0.99
+        self.eps_clip = 0.1
         self.batch_size = 200
         self.prev_obs = None
         self.states = []
@@ -97,11 +109,26 @@ class Agent(object):
         # TODO: is it enough saving just the state dict? What about the optimizer?
         # https://stackoverflow.com/questions/42703500/best-way-to-save-a-trained-model-in-pytorch
 
+    def preprocess(self, observation):
+        observation = observation[::2, ::2].mean(axis=-1)
+        observation = np.expand_dims(observation, axis=-1)
+        if self.prev_obs is None:
+            self.prev_obs = observation
+        stack_ob = np.concatenate((self.prev_obs, observation), axis=-1)
+        stack_ob = torch.from_numpy(stack_ob).float().unsqueeze(0)
+        stack_ob = stack_ob.transpose(1, 3)
+        self.prev_obs = observation
+        return stack_ob
+
     def preprocess(self, obs):
         # Preprocess the observation and set input to network to be difference image
         obs = obs[::2, ::2, 0]  # downsample by factor of 2
         obs[obs == 43] = 0  # erase background (background type 1)
         obs[obs != 0] = 1  # everything else (paddles, ball) just set to 1
+        obs = torch.from_numpy(obs.astype(np.float32).ravel()).unsqueeze(0)
+        # return obs - self.prev_obs
+        # return self.state_to_tensor(x) - self.state_to_tensor(prev_x)
+        return torch.cat([self.state_to_tensor(x), self.state_to_tensor(prev_x)], dim=1)
         cur_obs = obs.astype(np.float).ravel()
         obs = cur_obs - self.prev_obs if self.prev_obs is not None else np.zeros(self.input_dimension)
         self.prev_obs = cur_obs
