@@ -42,7 +42,7 @@ def train(episodes_batch=200, iterations=100000, max_timesteps=190000,
                     env.render()
 
                 with torch.no_grad():
-                    action1, action_prob1, stack_obs = player.get_action(obs1)
+                    action1, action_prob1, stack_obs = player.get_action(obs1, evaluation=False)
 
                 obs1, reward1, done, info = env.step(action1)
 

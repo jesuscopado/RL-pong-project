@@ -100,24 +100,22 @@ class Agent(object):
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=1e-3)
         self.gamma = 0.99
         self.eps_clip = 0.1
-        self.batch_size = 200
         self.prev_obs = None
         self.perc_minibatch = 0.7
         self.name = "PPOAgent_{}".format(type(self.policy).__name__)
 
-    def get_action(self, obs, evaluation=False):
+    def get_action(self, obs, evaluation=True):
         stack_obs = self.preprocess(obs)
         logits = self.policy.forward(stack_obs)
 
         if evaluation:
             action = int(torch.argmax(logits[0]).detach().cpu().numpy())
-            action_prob = 1.0
+            return self.convert_action(action)
         else:
             dist = torch.distributions.Categorical(logits=logits)
             action = int(dist.sample().cpu().numpy()[0])
             action_prob = float(dist.probs[0, action].detach().cpu().numpy())
-
-        return self.convert_action(action), action_prob, stack_obs
+            return self.convert_action(action), action_prob, stack_obs
 
     def convert_action(self, action):
         return action + 1 if self.action_space == 2 else action
