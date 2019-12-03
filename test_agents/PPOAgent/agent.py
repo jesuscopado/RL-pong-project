@@ -94,22 +94,22 @@ class Agent(object):
     def __init__(self, train_device="cpu"):
         self.train_device = train_device
         self.input_dimension = 100 * 100  # downsampled by 2 -> 100x100 grid
-        self.action_space = 2
+        self.action_space = 3
         self.policy = Policy(self.action_space, self.input_dimension).to(self.train_device)
         # self.policy = PolicyConv(self.action_space, 128).to(self.train_device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=1e-3)
         self.gamma = 0.99
         self.eps_clip = 0.1
         self.prev_obs = None
-        self.perc_minibatch = 0.7
-        self.name = "PPOAgent_{}".format(type(self.policy).__name__)
+        self.perc_minibatch = 0.5
+        self.name = "PPOAgent_{}_{}actions".format(type(self.policy).__name__, self.action_space)
 
     def get_action(self, obs, evaluation=True):
         stack_obs = self.preprocess(obs)
         logits = self.policy.forward(stack_obs)
 
         if evaluation:
-            action = int(torch.argmax(logits[0]).detach().cpu().numpy())
+            action = int(torch.argmax(logits[0]).detach().cpu().numpy())  # TODO: let it random also in test?
             return self.convert_action(action)
         else:
             dist = torch.distributions.Categorical(logits=logits)
@@ -169,7 +169,7 @@ class Agent(object):
             # advantage_batch = (advantage_batch - advantage_batch.mean()) / advantage_batch.std()
 
             self.optimizer.zero_grad()  # TODO: check if we get better results without it (full-batch?)
-            vs = np.array([[1., 0.], [0., 1.]])
+            vs = np.identity(self.action_space)
             ts = torch.FloatTensor(vs[action_batch.cpu().numpy()]).to(self.train_device)
             logits = self.policy.forward(d_obs_batch)
             r = torch.sum(F.softmax(logits, dim=1) * ts, dim=1) / action_prob_batch
