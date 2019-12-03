@@ -105,7 +105,8 @@ class Agent(object):
         self.perc_minibatch = 0.7
         self.name = "PPOAgent_{}".format(type(self.policy).__name__)
 
-    def get_action(self, stack_obs, evaluation=False):
+    def get_action(self, obs, evaluation=False):
+        stack_obs = self.preprocess(obs)
         logits = self.policy.forward(stack_obs)
 
         if evaluation:
@@ -116,7 +117,7 @@ class Agent(object):
             action = int(dist.sample().cpu().numpy()[0])
             action_prob = float(dist.probs[0, action].detach().cpu().numpy())
 
-        return action, action_prob
+        return action, action_prob, stack_obs
 
     def convert_action(self, action):
         return action + 1 if self.action_space == 2 else action

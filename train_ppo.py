@@ -41,9 +41,8 @@ def train(episodes_batch=200, iterations=100000, max_timesteps=190000,
                 if render:
                     env.render()
 
-                stack_obs = player.preprocess(obs1)
                 with torch.no_grad():
-                    action1, action_prob1 = player.get_action(stack_obs)
+                    action1, action_prob1, stack_obs = player.get_action(obs1)
 
                 obs1, reward1, done, info = env.step(player.convert_action(action1))
 
