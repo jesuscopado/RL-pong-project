@@ -91,7 +91,7 @@ class PolicyConv(torch.nn.Module):
 
 
 class Agent(object):
-    def __init__(self, train_device="cuda"):
+    def __init__(self, train_device="cpu"):
         self.train_device = train_device
         self.input_dimension = 100 * 100  # downsampled by 2 -> 100x100 grid
         self.action_space = 2
