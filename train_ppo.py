@@ -1,3 +1,4 @@
+import argparse
 import time
 
 import gym
@@ -87,4 +88,8 @@ def train(episodes_batch=200, iterations=100000, max_timesteps=190000,
 
 
 if __name__ == "__main__":
-    train()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--render", "-r", action="store_true", help="Render the competition.")
+    parser.add_argument("--resume", "-r", action="store_true", help="Resume training.")
+    args = parser.parse_args()
+    train(render=args.render, resume=args.resume)
