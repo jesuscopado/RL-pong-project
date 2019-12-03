@@ -187,7 +187,7 @@ class Agent(object):
 
     def load_model(self, name=None, evaluation=False):
         name_file = "{}.mdl".format(self.name if name is None else name)
-        weights = torch.load(name_file)
+        weights = torch.load(name_file, map_location=torch.device(self.train_device))
         self.policy.load_state_dict(weights, strict=False)
         if evaluation:
             self.policy.eval()
