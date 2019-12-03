@@ -44,10 +44,10 @@ def train(episodes_batch=200, iterations=100000, max_timesteps=190000,
                 with torch.no_grad():
                     action1, action_prob1, stack_obs = player.get_action(obs1)
 
-                obs1, reward1, done, info = env.step(player.convert_action(action1))
+                obs1, reward1, done, info = env.step(action1)
 
                 stack_obs_history.append(stack_obs)
-                action_history.append(action1)
+                action_history.append(player.revert_action_convertion(action1))
                 action_prob_history.append(action_prob1)
                 reward_history.append(reward1)
 

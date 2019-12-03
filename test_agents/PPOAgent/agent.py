@@ -117,10 +117,13 @@ class Agent(object):
             action = int(dist.sample().cpu().numpy()[0])
             action_prob = float(dist.probs[0, action].detach().cpu().numpy())
 
-        return action, action_prob, stack_obs
+        return self.convert_action(action), action_prob, stack_obs
 
     def convert_action(self, action):
         return action + 1 if self.action_space == 2 else action
+
+    def revert_action_convertion(self, action):
+        return action - 1 if self.action_space == 2 else action
 
     def preprocess(self, obs):
         if "Conv" not in type(self.policy).__name__:
