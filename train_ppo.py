@@ -23,7 +23,7 @@ def train(episodes_batch=200, iterations=100000, max_timesteps=190000,
           render=False, resume=False, full_print=True):
 
     if resume:
-        player.load_model()
+        player.load_model(evaluation=False)
 
     print("Training for {} started!".format(player.get_name()))
 
