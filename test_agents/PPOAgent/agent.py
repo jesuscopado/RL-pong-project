@@ -102,7 +102,7 @@ class Agent(object):
         self.eps_clip = 0.1
         self.batch_size = 200
         self.prev_obs = None
-        self.perc_minibatch = 0.5
+        self.perc_minibatch = 0.7
         self.name = "PPOAgent_{}".format(type(self.policy).__name__)
 
     def get_action(self, stack_obs, evaluation=False):
