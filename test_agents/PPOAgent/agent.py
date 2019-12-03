@@ -129,7 +129,7 @@ class Agent(object):
             obs = torch.from_numpy(obs.astype(np.float32).ravel()).unsqueeze(0)
             if self.prev_obs is None:
                 self.prev_obs = obs
-            stack_obs = torch.cat([obs, self.prev_obs], dim=1).to(self.train_device)
+            stack_obs = torch.cat([obs, self.prev_obs], dim=1)
         else:
             obs = obs[::2, ::2].mean(axis=-1)
             obs = np.expand_dims(obs, axis=-1)
@@ -140,7 +140,7 @@ class Agent(object):
             stack_obs = stack_obs.transpose(1, 3)
 
         self.prev_obs = obs
-        return stack_obs
+        return stack_obs.to(self.train_device)
 
     def discount_rewards(self, reward_history):
         R = 0
