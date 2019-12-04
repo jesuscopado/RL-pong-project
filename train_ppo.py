@@ -90,4 +90,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--resume", action="store_true", help="Resume training.")
     args = parser.parse_args()
-    train(resume=args.resume)
+    train(resume=True if args.resume else False)

@@ -70,7 +70,7 @@ class PolicyConv(torch.nn.Module):
                 torch.nn.init.uniform_(m.weight)
                 torch.nn.init.zeros_(m.bias)
             elif type(m) is torch.nn.Conv2d:
-                torch.nn.init.xavier_normal_(m.weight.data)
+                torch.nn.init.zeros_(m.weight.data)
                 if m.bias is not None:
                     torch.nn.init.normal_(m.bias.data)
 
@@ -101,8 +101,9 @@ class Agent(object):
         self.gamma = 0.99
         self.eps_clip = 0.1
         self.prev_obs = None
-        self.perc_minibatch = 0.5
-        self.name = "PPOAgent_{}_{}actions".format(type(self.policy).__name__, self.action_space)
+        self.perc_minibatch = 0.7
+        # self.name = "PPOAgent_{}_{}actions".format(type(self.policy).__name__, self.action_space)
+        self.name = "ErasedOppPaddle"
 
     def get_action(self, obs, evaluation=True):
         stack_obs = self.preprocess(obs)
@@ -123,10 +124,12 @@ class Agent(object):
     def revert_action_convertion(self, action):
         return action - 1 if self.action_space == 2 else action
 
-    def preprocess(self, obs):
+    def preprocess(self, obs, erase_opp_paddle=True):
         if "Conv" not in type(self.policy).__name__:
             obs = obs[::2, ::2, 0]  # downsample by factor of 2
             obs[obs == 43] = 0  # erase background (background type 1)
+            if erase_opp_paddle:
+                obs[obs == 195] = 0  # erase opponent paddle  # TODO: could work better?
             obs[obs != 0] = 1  # everything else (paddles, ball) just set to 1
             obs = torch.from_numpy(obs.astype(np.float32).ravel()).unsqueeze(0)
             if self.prev_obs is None:
