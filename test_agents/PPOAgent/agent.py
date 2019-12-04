@@ -94,7 +94,7 @@ class Agent(object):
     def __init__(self, train_device="cpu"):
         self.train_device = train_device
         self.input_dimension = 100 * 100  # downsampled by 2 -> 100x100 grid
-        self.action_space = 3
+        self.action_space = 2
         self.policy = Policy(self.action_space, self.input_dimension).to(self.train_device)
         # self.policy = PolicyConv(self.action_space, 128).to(self.train_device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=1e-3)
