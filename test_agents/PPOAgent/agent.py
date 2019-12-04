@@ -93,8 +93,7 @@ class PolicyConv(torch.nn.Module):
 class Agent(object):
     def __init__(self, train_device="cpu"):
         self.train_device = train_device
-        # self.input_dimension = 100 * 100  # downsampled by 2 -> 100x100 grid
-        self.input_dimension = 67 * 67  # downsampled by 3 -> 67x67 grid
+        self.input_dimension = 100 * 100  # downsampled by 2 -> 100x100 grid
         self.action_space = 2
         self.policy = Policy(self.action_space, self.input_dimension).to(self.train_device)
         # self.policy = PolicyConv(self.action_space, 128).to(self.train_device)
@@ -128,7 +127,7 @@ class Agent(object):
 
     def preprocess(self, obs, erase_opp_paddle=True):
         if "Conv" not in type(self.policy).__name__:
-            obs = obs[::3, ::3, 0]  # downsample by factor of 2
+            obs = obs[::2, ::2, 0]  # downsample by factor of 2
             obs[obs == 43] = 0  # erase background (background type 1)
             if erase_opp_paddle:
                 obs[obs == 195] = 0  # erase opponent paddle  # TODO: could work better?
