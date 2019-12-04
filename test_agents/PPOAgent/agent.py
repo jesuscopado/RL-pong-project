@@ -9,7 +9,7 @@ class Policy(torch.nn.Module):
     def __init__(self, action_space, input_dimension):
         super().__init__()
         self.hidden = 512
-        self.fc1 = torch.nn.Linear(input_dimension*2, self.hidden)
+        self.fc1 = torch.nn.Linear(input_dimension*3, self.hidden)
         self.fc2 = torch.nn.Linear(self.hidden, action_space)
         # self.init_weights()
 
@@ -93,7 +93,8 @@ class PolicyConv(torch.nn.Module):
 class Agent(object):
     def __init__(self, train_device="cpu"):
         self.train_device = train_device
-        self.input_dimension = 100 * 100  # downsampled by 2 -> 100x100 grid
+        # self.input_dimension = 100 * 100  # downsampled by 2 -> 100x100 grid
+        self.input_dimension = 67 * 67  # downsampled by 3 -> 67x67 grid
         self.action_space = 2
         self.policy = Policy(self.action_space, self.input_dimension).to(self.train_device)
         # self.policy = PolicyConv(self.action_space, 128).to(self.train_device)
@@ -101,6 +102,7 @@ class Agent(object):
         self.gamma = 0.99
         self.eps_clip = 0.1
         self.prev_obs = None
+        self.prev_obs_2 = None
         self.perc_minibatch = 0.7
         # self.name = "PPOAgent_{}_{}actions".format(type(self.policy).__name__, self.action_space)
         self.name = "ErasedOppPaddle"
@@ -126,7 +128,7 @@ class Agent(object):
 
     def preprocess(self, obs, erase_opp_paddle=True):
         if "Conv" not in type(self.policy).__name__:
-            obs = obs[::2, ::2, 0]  # downsample by factor of 2
+            obs = obs[::3, ::3, 0]  # downsample by factor of 2
             obs[obs == 43] = 0  # erase background (background type 1)
             if erase_opp_paddle:
                 obs[obs == 195] = 0  # erase opponent paddle  # TODO: could work better?
@@ -134,7 +136,11 @@ class Agent(object):
             obs = torch.from_numpy(obs.astype(np.float32).ravel()).unsqueeze(0)
             if self.prev_obs is None:
                 self.prev_obs = obs
-            stack_obs = torch.cat([obs, self.prev_obs], dim=1)
+            if self.prev_obs_2 is None:
+                self.prev_obs_2 = obs
+            stack_obs = torch.cat([obs, self.prev_obs, self.prev_obs_2], dim=1)
+            self.prev_obs_2 = self.prev_obs
+
         else:
             obs = obs[::2, ::2].mean(axis=-1)
             obs = np.expand_dims(obs, axis=-1)
@@ -185,6 +191,7 @@ class Agent(object):
 
     def reset(self):
         self.prev_obs = None
+        self.prev_obs_2 = None
 
     def get_name(self):
         return self.name
