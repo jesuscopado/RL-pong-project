@@ -9,7 +9,7 @@ class Policy(torch.nn.Module):
     def __init__(self, action_space, input_dimension):
         super().__init__()
         self.hidden = 512
-        self.fc1 = torch.nn.Linear(input_dimension*3, self.hidden)
+        self.fc1 = torch.nn.Linear(input_dimension*2, self.hidden)
         self.fc2 = torch.nn.Linear(self.hidden, action_space)
         # self.init_weights()
 
@@ -70,7 +70,7 @@ class PolicyConv(torch.nn.Module):
                 torch.nn.init.uniform_(m.weight)
                 torch.nn.init.zeros_(m.bias)
             elif type(m) is torch.nn.Conv2d:
-                torch.nn.init.zeros_(m.weight.data)
+                torch.nn.init.xavier_normal_(m.weight.data)
                 if m.bias is not None:
                     torch.nn.init.normal_(m.bias.data)
 
@@ -101,10 +101,8 @@ class Agent(object):
         self.gamma = 0.99
         self.eps_clip = 0.1
         self.prev_obs = None
-        self.prev_obs_2 = None
         self.perc_minibatch = 0.7
-        # self.name = "PPOAgent_{}_{}actions".format(type(self.policy).__name__, self.action_space)
-        self.name = "ErasedOppPaddle"
+        self.name = "PPOAgent_{}".format(type(self.policy).__name__)
 
     def get_action(self, obs, evaluation=True):
         stack_obs = self.preprocess(obs)
@@ -125,21 +123,15 @@ class Agent(object):
     def revert_action_convertion(self, action):
         return action - 1 if self.action_space == 2 else action
 
-    def preprocess(self, obs, erase_opp_paddle=True):
+    def preprocess(self, obs):
         if "Conv" not in type(self.policy).__name__:
             obs = obs[::2, ::2, 0]  # downsample by factor of 2
             obs[obs == 43] = 0  # erase background (background type 1)
-            if erase_opp_paddle:
-                obs[obs == 195] = 0  # erase opponent paddle  # TODO: could work better?
             obs[obs != 0] = 1  # everything else (paddles, ball) just set to 1
             obs = torch.from_numpy(obs.astype(np.float32).ravel()).unsqueeze(0)
             if self.prev_obs is None:
                 self.prev_obs = obs
-            if self.prev_obs_2 is None:
-                self.prev_obs_2 = obs
-            stack_obs = torch.cat([obs, self.prev_obs, self.prev_obs_2], dim=1)
-            self.prev_obs_2 = self.prev_obs
-
+            stack_obs = torch.cat([obs, self.prev_obs], dim=1)
         else:
             obs = obs[::2, ::2].mean(axis=-1)
             obs = np.expand_dims(obs, axis=-1)
@@ -176,7 +168,7 @@ class Agent(object):
             advantage_batch = torch.FloatTensor([discounted_rewards[idx] for idx in idxs]).to(self.train_device)
             # advantage_batch = (advantage_batch - advantage_batch.mean()) / advantage_batch.std()
 
-            self.optimizer.zero_grad()  # TODO: check if we get better results without it (full-batch?)
+            self.optimizer.zero_grad()
             vs = np.identity(self.action_space)
             ts = torch.FloatTensor(vs[action_batch.cpu().numpy()]).to(self.train_device)
             logits = self.policy.forward(d_obs_batch)
@@ -190,7 +182,6 @@ class Agent(object):
 
     def reset(self):
         self.prev_obs = None
-        self.prev_obs_2 = None
 
     def get_name(self):
         return self.name
