@@ -4,6 +4,9 @@ This project is a two player version of the pong-v0 OpenAI Gym environment.
 The environment is used in the Reinforcement Learning course at Aalto University,
 Finland.
 
+## Report
+[RL_Project_Copado_Bordon.pdf](RL_Project_Copado_Bordon.pdf)
+
 ## How to use
 - Clone the repository: `https://github.com/aalto-intelligent-robotics/Wimblepong`.
 - Install the dependencies listed in requirements.txt.
