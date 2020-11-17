@@ -2,13 +2,11 @@ import argparse
 import time
 
 import gym
-import matplotlib.pyplot as plt
 import torch
 import numpy as np
 
-from test_agents.PPOAgent.agent import Agent as PPOAgent
+from DaBomb.agent import Agent as PPOAgent
 from utils import save_plot
-
 import wimblepong
 
 # Make the environment
@@ -33,7 +31,7 @@ def train(episodes_batch=200, iterations=100000, max_timesteps=190000,
     reward_sum_running_avg = None
     for it in range(iterations):
         stack_obs_history, action_history, action_prob_history, reward_history = [], [], [], []
-        for ep in range(episodes_batch):  # TODO: which number here? 10? 30? 200?
+        for ep in range(episodes_batch):
             obs1 = env.reset()
             player.reset()
             total_episodes += 1
