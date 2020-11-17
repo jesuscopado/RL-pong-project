@@ -94,7 +94,7 @@ class Agent(object):
     def __init__(self, train_device="cpu"):
         self.train_device = train_device
         self.input_dimension = 100 * 100  # downsampled by 2 -> 100x100 grid
-        self.action_space = 2
+        self.action_space = 3
         self.policy = Policy(self.action_space, self.input_dimension).to(self.train_device)
         # self.policy = PolicyConv(self.action_space, 128).to(self.train_device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=1e-3)
@@ -102,7 +102,7 @@ class Agent(object):
         self.eps_clip = 0.1
         self.prev_obs = None
         self.perc_minibatch = 0.7
-        self.name = "PPOAgent_{}".format(type(self.policy).__name__)
+        self.name = "** DaBomb3 **"
 
     def get_action(self, obs, evaluation=True):
         stack_obs = self.preprocess(obs)
@@ -187,7 +187,8 @@ class Agent(object):
         return self.name
 
     def load_model(self, name=None, evaluation=True):
-        name_file = "{}.mdl".format(self.name if name is None else name)
+        # name_file = "{}.mdl".format(self.name if name is None else name)
+        name_file = "model.mdl"
         weights = torch.load(name_file, map_location=torch.device(self.train_device))
         self.policy.load_state_dict(weights, strict=False)
         if evaluation:
